@@ -1,9 +1,10 @@
-langchain==0.3.25
-langchain-core==0.3.65
-langchain-community==0.3.24
-langchain-huggingface==0.1.2
-langchain-groq==0.3.2
-langgraph==0.3.34
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-community>=0.3.0
+langchain-huggingface>=0.1.0
+langchain-groq>=0.3.0
+langgraph>=0.3.0
 faiss-cpu==1.11.0
-sentence-transformers==3.4.1
+sentence-transformers>=3.4.0
+scikit-learn
 streamlit
