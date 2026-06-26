@@ -2,56 +2,94 @@ import streamlit as st
 import os
 from typing import TypedDict, List, Optional
 from sklearn.metrics.pairwise import cosine_similarity
-
 from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 from langgraph.graph import StateGraph, END
 
-# --- 1. SETUP HALAMAN ---
-st.set_page_config(page_title="QA Mrapen", page_icon="🔥")
-st.title("🔥 Sistem Tanya Jawab Pariwisata Cerdas")
-st.subheader("Api Abadi Mrapen - Kabupaten Grobogan")
+# --- 1. SETUP HALAMAN & TEMA MODERN ---
+# Menggunakan layout wide agar tampilan chat lebih lega
+st.set_page_config(page_title="QA Mrapen", page_icon="🔥", layout="wide")
 
-# --- 2. SETUP API KEY ---
-# API Key diambil dari Streamlit Secrets, bukan di-hardcode
-os.environ['GROQ_API_KEY'] = st.secrets["GROQ_API_KEY"]
+# Custom CSS untuk mempercantik judul
+st.markdown("""
+    <style>
+    .main-header {
+        font-size: 2.5rem;
+        color: #e74c3c;
+        text-align: center;
+        font-weight: bold;
+        margin-bottom: 0px;
+    }
+    .sub-header {
+        font-size: 1.2rem;
+        color: #7f8c8d;
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
-# --- 3. LOAD MODEL & FAISS (Gunakan Cache agar cepat) ---
-@st.cache_resource
+st.markdown('<p class="main-header">🔥 Sistem Tanya Jawab Pariwisata Cerdas</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-header">Jelajahi Keajaiban Api Abadi Mrapen - Kabupaten Grobogan</p>', unsafe_allow_html=True)
+
+# --- 2. SIDEBAR INFORMASI SISTEM ---
+with st.sidebar:
+    st.title("ℹ️ Tentang Sistem")
+    st.info(
+        "Sistem ini menggunakan **Agentic RAG** (LangGraph) untuk merespons pertanyaan "
+        "berdasarkan ulasan pengunjung dan data resmi pengelola wisata."
+    )
+    st.markdown("---")
+    st.markdown("**Peneliti:** Yekti Kuncorojati")
+    st.markdown("**NIM:** 2207023")
+    st.markdown("**Prodi:** S1 Ilmu Komputer")
+    st.markdown("**Institusi:** Universitas An Nuur")
+    st.markdown("---")
+    # Tombol untuk mereset riwayat percakapan
+    if st.button("🗑️ Hapus Riwayat Chat"):
+        st.session_state.messages = []
+        st.rerun()
+
+# --- 3. KONFIGURASI API KEY ---
+if "GROQ_API_KEY" in st.secrets:
+    os.environ['GROQ_API_KEY'] = st.secrets["GROQ_API_KEY"]
+else:
+    st.error("⚠️ API Key belum ditemukan! Masukkan di Settings -> Secrets.")
+    st.stop()
+
+# --- 4. LOADING ENGINE (Embeddings, Vector Store, LLM) ---
+@st.cache_resource(show_spinner=False)
 def load_rag_system():
-    # Load Embeddings
     embeddings = HuggingFaceEmbeddings(
         model_name='sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2',
         model_kwargs={'device': 'cpu'},
         encode_kwargs={'normalize_embeddings': True},
     )
-    # Load FAISS
     vectorstore = FAISS.load_local(
-        'faiss_mrapen_index', embeddings, allow_dangerous_deserialization=True
+        'faiss_mrapen_index', 
+        embeddings, 
+        allow_dangerous_deserialization=True
     )
-    
-    # Load LLM
     llm_main = ChatGroq(
         model='llama-3.3-70b-versatile',
         temperature=0.3,
         max_tokens=1024,
+        groq_api_key=os.environ['GROQ_API_KEY']
     )
     return embeddings, vectorstore, llm_main
 
-embeddings, vectorstore, llm_main = load_rag_system()
+with st.spinner("⏳ Menyiapkan asisten AI..."):
+    embeddings, vectorstore, llm_main = load_rag_system()
 
-# --- 4. LANGGRAPH PIPELINE (Dari Cell 5) ---
+# --- 5. LOGIKA LANGGRAPH ---
 KATA_KUNCI_DOMAIN = [
-    'mrapen', 'api abadi', 'grobogan', 'godong', 'manggarmas',
-    'tiket', 'harga', 'masuk', 'bayar', 'biaya',
-    'fasilitas', 'toilet', 'parkir', 'warung', 'makanan', 'minuman',
-    'jam', 'buka', 'tutup', 'operasional', 'waktu', 'kunjungan',
-    'sejarah', 'sunan kalijaga', 'walisongo', 'legenda',
-    'gas', 'metana', 'fenomena', 'alam', 'geologi', 'pvmbg',
-    'wisata', 'pariwisata', 'pengunjung', 'lokasi', 'akses',
-    'padam', 'menyala',
+    'mrapen', 'api abadi', 'grobogan', 'tiket', 'jam', 'buka', 'fasilitas', 
+    'sejarah', 'wisata', 'lokasi', 'harga', 'toilet', 'parkir', 'warung', 
+    'makanan', 'minuman', 'tutup', 'operasional', 'waktu', 'kunjungan', 
+    'sunan kalijaga', 'walisongo', 'legenda', 'gas', 'metana', 'fenomena', 
+    'alam', 'geologi', 'pvmbg', 'pengunjung', 'akses', 'padam', 'menyala'
 ]
 
 class RAGState(TypedDict):
@@ -69,7 +107,7 @@ def cek_relevansi(state: RAGState) -> RAGState:
 
 def retrieve(state: RAGState) -> RAGState:
     docs = vectorstore.as_retriever(search_kwargs={'k': 5}).invoke(state['pertanyaan'])
-    konteks = '\n\n'.join(f"[{d.metadata.get('sumber','?')}] {d.page_content}" for d in docs)
+    konteks = '\n\n'.join(f"[{d.metadata.get('sumber','?')}]: {d.page_content}" for d in docs)
     return {**state, 'dokumen': docs, 'konteks': konteks}
 
 def validasi_konteks(state: RAGState) -> RAGState:
@@ -79,59 +117,67 @@ def validasi_konteks(state: RAGState) -> RAGState:
     skor = float(cosine_similarity([q_emb], [k_emb])[0][0])
     return {**state, 'skor_konteks': skor}
 
-def retrieve_ulang(state: RAGState) -> RAGState:
-    expanded_query = f"Api Abadi Mrapen wisata {state['pertanyaan']}"
-    docs = vectorstore.as_retriever(search_kwargs={'k': 7}).invoke(expanded_query)
-    konteks = '\n\n'.join(f"[{d.metadata.get('sumber','?')}] {d.page_content}" for d in docs)
-    return {**state, 'dokumen': docs, 'konteks': konteks, 'retry_count': state['retry_count'] + 1}
-
 def generate(state: RAGState) -> RAGState:
-    sys_prompt = ('Anda adalah asisten wisata cerdas untuk Api Abadi Mrapen. Jawab informatif, '
-                  'ramah. Utamakan sumber resmi. Jika tidak ada di konteks, katakan belum tersedia.')
+    sys_prompt = 'Anda adalah asisten wisata cerdas untuk Api Abadi Mrapen. Jawab dengan natural, ramah, dan informatif.'
     user_prompt = f"Konteks:\n{state['konteks']}\n\nPertanyaan: {state['pertanyaan']}"
     res = llm_main.invoke([SystemMessage(content=sys_prompt), HumanMessage(content=user_prompt)])
     return {**state, 'jawaban': res.content}
-
-def fallback(state: RAGState) -> RAGState:
-    return {**state, 'jawaban': "Maaf, pertanyaan Anda di luar topik wisata Api Abadi Mrapen. 😊"}
-
-def routing_relevansi(state): return 'retrieve' if state['relevan'] else 'fallback'
-def routing_validasi(state): return 'generate' if state['skor_konteks'] >= 0.30 or state['retry_count'] >= 1 else 'retrieve_ulang'
 
 graph = StateGraph(RAGState)
 graph.add_node('cek_relevansi', cek_relevansi)
 graph.add_node('retrieve', retrieve)
 graph.add_node('validasi_konteks', validasi_konteks)
-graph.add_node('retrieve_ulang', retrieve_ulang)
 graph.add_node('generate', generate)
-graph.add_node('fallback', fallback)
+graph.add_node('fallback', lambda s: {**s, 'jawaban': "Maaf, pertanyaan Anda tampaknya di luar topik wisata Mrapen. Ada yang bisa saya bantu terkait fasilitas, tiket, atau lokasinya? 😊"})
 
 graph.set_entry_point('cek_relevansi')
-graph.add_conditional_edges('cek_relevansi', routing_relevansi, {'retrieve': 'retrieve', 'fallback': 'fallback'})
+graph.add_conditional_edges('cek_relevansi', lambda s: 'retrieve' if s['relevan'] else 'fallback', {'retrieve': 'retrieve', 'fallback': 'fallback'})
 graph.add_edge('retrieve', 'validasi_konteks')
-graph.add_conditional_edges('validasi_konteks', routing_validasi, {'generate': 'generate', 'retrieve_ulang': 'retrieve_ulang'})
-graph.add_edge('retrieve_ulang', 'validasi_konteks')
+graph.add_edge('validasi_konteks', 'generate')
 graph.add_edge('generate', END)
 graph.add_edge('fallback', END)
 rag_app = graph.compile()
 
-# --- 5. ANTARMUKA STREAMLIT ---
-user_input = st.text_input("✏️ Ajukan pertanyaan Anda tentang Mrapen:")
-if st.button("🔍 Cari Jawaban"):
-    if user_input:
-        with st.spinner("Mencari jawaban terbaik dari ulasan pengunjung..."):
-            inisial_state = {'pertanyaan': user_input, 'dokumen': None, 'konteks': None, 'jawaban': None, 'skor_konteks': 0.0, 'retry_count': 0, 'relevan': False}
-            hasil = rag_app.invoke(inisial_state)
+
+# --- 6. ANTARMUKA CHAT INTERAKTIF ---
+
+# Inisialisasi memori riwayat chat di session_state
+if "messages" not in st.session_state:
+    st.session_state.messages = [
+        {"role": "assistant", "content": "Halo! Saya adalah asisten virtual Api Abadi Mrapen. Ada yang ingin Anda tanyakan seputar tiket, jam buka, fasilitas, atau sejarah lokasi wisata ini?"}
+    ]
+
+# Tampilkan seluruh riwayat percakapan sebelumnya
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
+        # Tampilkan skor konteks jika ada
+        if "score" in msg and msg["score"] > 0:
+            with st.expander("📊 Metrik (UAT)"):
+                st.caption(f"Skor Cosine Similarity: **{msg['score']:.3f}**")
+
+# Input chat di bagian bawah layar
+if prompt = st.chat_input("Ketik pertanyaan Anda di sini... (misal: Berapa harga tiketnya?)"):
+    
+    # 1. Tampilkan pertanyaan pengguna ke layar
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    # 2. Proses jawaban dari sistem LangGraph
+    with st.chat_message("assistant"):
+        with st.spinner("Berpikir..."):
+            hasil = rag_app.invoke({'pertanyaan': prompt, 'retry_count': 0})
+            jawaban = hasil['jawaban']
+            skor = hasil.get('skor_konteks', 0.0)
             
-            st.success("Selesai!")
-            st.write(hasil['jawaban'])
+            # Tampilkan jawaban
+            st.markdown(jawaban)
             
-            # Tampilkan metrik (berguna untuk UAT)
-            with st.expander("Lihat Detail Konteks & Skor"):
-                st.info(f"Skor Cosine Similarity: {hasil['skor_konteks']:.3f}")
-                if hasil['dokumen']:
-                    st.write("Dokumen Referensi:")
-                    for i, doc in enumerate(hasil['dokumen'], 1):
-                        st.caption(f"[{doc.metadata.get('sumber', 'Unknown')}] {doc.page_content[:150]}...")
-    else:
-        st.warning("Silakan masukkan pertanyaan terlebih dahulu.")
+            # Tampilkan metrik di dalam expander
+            if skor > 0:
+                with st.expander("📊 Metrik (UAT)"):
+                    st.caption(f"Skor Cosine Similarity: **{skor:.3f}**")
+            
+    # 3. Simpan jawaban sistem ke dalam memori
+    st.session_state.messages.append({"role": "assistant", "content": jawaban, "score": skor})
