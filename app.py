@@ -43,10 +43,7 @@ st.markdown(f"""
     }}
     </style>
     
-    <div class="hero-container">
-        <p class="main-header">🔥 Sistem Tanya Jawab Pariwisata Cerdas</p>
-        <p class="sub-header">Jelajahi Keajaiban Api Abadi Mrapen - Kabupaten Grobogan</p>
-    </div>
+  
 """, unsafe_allow_html=True)
 st.markdown('<p class="main-header">🔥 Sistem Tanya Jawab Pariwisata Cerdas</p>', unsafe_allow_html=True)
 st.markdown('<p class="sub-header">Jelajahi Keajaiban Api Abadi Mrapen - Kabupaten Grobogan</p>', unsafe_allow_html=True)
