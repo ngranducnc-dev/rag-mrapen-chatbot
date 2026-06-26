@@ -156,8 +156,8 @@ for msg in st.session_state.messages:
             with st.expander("📊 Metrik (UAT)"):
                 st.caption(f"Skor Cosine Similarity: **{msg['score']:.3f}**")
 
-# Input chat di bagian bawah layar
-if prompt = st.chat_input("Ketik pertanyaan Anda di sini... (misal: Berapa harga tiketnya?)"):
+# Input chat di bagian bawah layar (DI SINI PERBAIKANNYA)
+if prompt := st.chat_input("Ketik pertanyaan Anda di sini... (misal: Berapa harga tiketnya?)"):
     
     # 1. Tampilkan pertanyaan pengguna ke layar
     st.session_state.messages.append({"role": "user", "content": prompt})
