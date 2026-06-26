@@ -12,25 +12,42 @@ from langgraph.graph import StateGraph, END
 # Menggunakan layout wide agar tampilan chat lebih lega
 st.set_page_config(page_title="QA Mrapen", page_icon="🔥", layout="wide")
 
-# Custom CSS untuk mempercantik judul
-st.markdown("""
+# Link gambar latar belakang (Silakan ganti dengan link foto Api Abadi Mrapen yang Anda inginkan)
+GAMBAR_BACKGROUND = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRSHXXZSc-68J7nhUP3dKVszi5TNO1Ni1vFBg&s"
+
+st.markdown(f"""
     <style>
-    .main-header {
-        font-size: 2.5rem;
-        color: #e74c3c;
+    .hero-container {{
+        /* Menggabungkan warna gelap transparan dan gambar latar */
+        background-image: linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)), url("{GAMBAR_BACKGROUND}");
+        background-size: cover;
+        background-position: center;
+        padding: 60px 20px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    }}
+    .main-header {{
+        font-size: 2.8rem;
+        color: #ffffff; /* Diubah jadi putih agar kontras */
         text-align: center;
         font-weight: bold;
-        margin-bottom: 0px;
-    }
-    .sub-header {
-        font-size: 1.2rem;
-        color: #7f8c8d;
+        margin-bottom: 10px;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+    }}
+    .sub-header {{
+        font-size: 1.3rem;
+        color: #f1c40f; /* Diubah jadi kuning keemasan */
         text-align: center;
-        margin-bottom: 30px;
-    }
+        text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+    }}
     </style>
+    
+    <div class="hero-container">
+        <p class="main-header">🔥 Sistem Tanya Jawab Pariwisata Cerdas</p>
+        <p class="sub-header">Jelajahi Keajaiban Api Abadi Mrapen - Kabupaten Grobogan</p>
+    </div>
 """, unsafe_allow_html=True)
-
 st.markdown('<p class="main-header">🔥 Sistem Tanya Jawab Pariwisata Cerdas</p>', unsafe_allow_html=True)
 st.markdown('<p class="sub-header">Jelajahi Keajaiban Api Abadi Mrapen - Kabupaten Grobogan</p>', unsafe_allow_html=True)
 
